@@ -163,6 +163,9 @@ else
     RNAME="$HNAME:33102"
     [[ $isBOX != "" ]] && RNAME="$isBOX"
 
+    ## DEFINE RESPONSE LINK
+    [[ -s $MY_PATH/.env ]] && source $MY_PATH/.env
+
     ## AVAILABLE STYLES : CREATING SELECT
     sytle=($(find ${MY_PATH}/${IMAGES}/* -type d | sort | rev | cut -d '/' -f 1 | rev))
     sytlenb=${#sytle[@]}
