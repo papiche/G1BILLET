@@ -162,7 +162,7 @@ else
 
     ## WHERE DO CLIENT WILL GET FILE
     if [[ $isLAN ]]; then
-        RNAME="http://$HOST:33102"
+        RNAME="http://$myIP:33102"
     else
         RNAME="https://$HOST/33102"
     fi
