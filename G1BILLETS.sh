@@ -154,14 +154,18 @@ else
     isLAN=$(route -n |awk '$1 == "0.0.0.0" {print $2}' | grep -E "/(^127\.)|(^192\.168\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^::1$)|(^[fF][cCdD])/")
     isBOX=$(cat ${MY_PATH}/♥Box)
 
+    IPV4_REGEX='^([0-9]{1,3}\.){3}[0-9]{1,3}:[0-9]+$'    # IPv4 avec port (ex : 127.0.0.1:1234)
+    IPV6_REGEX='^\[([0-9a-fA-F:]+)\]:[0-9]+$'            # IPv6 avec port (ex : [2001:db8::1]:1234)
+    if [[ $HOSTP =~ $IPV4_REGEX || $HOSTP =~ $IPV6_REGEX ]]; then
+        isLAN=1 ## IP vs NAME
+    fi
+
     ## WHERE DO CLIENT WILL GET FILE
     if [[ $isLAN ]]; then
-        HNAME="http://g1billet.localhost"
+        RNAME="http://$HOST:33102"
     else
-        HNAME="http://$(hostname -I | awk '{print $1}' | head -n 1)"
+        RNAME="https://$HOST/33102"
     fi
-    RNAME="$HNAME:33102"
-    [[ $isBOX != "" ]] && RNAME="$isBOX"
 
     ## DEFINE RESPONSE LINK
     [[ -s $MY_PATH/.env ]] && source $MY_PATH/.env
