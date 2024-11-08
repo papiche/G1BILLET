@@ -145,7 +145,8 @@ TWIMG="TV.png"
 if [[ ${ASTRONS} != "" ]] ; then
     ASTROLINK="${ASTRONS}"
 else
-    ASTROLINK="https://opencollective.com/monnaie-libre"
+    ASTROLINK="https://opencollective.com/uplanet-zero"
+    TWIMG="your-own-data-cloud.png"
 fi
 
 amzqr "${ASTROLINK}" \
