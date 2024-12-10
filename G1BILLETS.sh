@@ -164,22 +164,22 @@ else
 
     ## WHERE DO CLIENT WILL GET FILE
     if [[ $isHOSTIP == 1 ]]; then
-        RNAME="http://$HOST:33102"
+        RNAME="http://$myIP:33102"
     else
         [[ $isLAN ]] \
-            && RNAME="http://$HOST:33102" \
-            || RNAME="https://$HOST/33102"
+            && RNAME="http://$myIP:33102" \
+            || RNAME="/33102"
     fi
 
     ## DEFINE RESPONSE LINK
     [[ -s $MY_PATH/.env ]] && source $MY_PATH/.env
-
+    echo ">>> $RNAME"
     ## AVAILABLE STYLES : CREATING SELECT
     sytle=($(find ${MY_PATH}/${IMAGES}/* -type d | sort | rev | cut -d '/' -f 1 | rev))
     sytlenb=${#sytle[@]}
     OPT=""
     for stname in ${sytle[@]}; do
-
+        echo "${stname}"
         pre=${stname:0:1}
 
         if [[ $pre == "_" ]]; then
@@ -289,6 +289,9 @@ function countdown() {
         echo " STARTING $ME DAEMON READY $(date)"
         echo "============= ************ =========================="
 
+        ##################################################################
+        #########################################################
+        #################################################
         REQ=$(echo "$HTTPWELLCOME" | nc -l -p 33101 -q 1) ## # WAIT FOR 33101 PORT CONTACT
 
         MOATS=$(date -u +"%Y%m%d%H%M%S%4N")

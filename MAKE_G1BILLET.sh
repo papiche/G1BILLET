@@ -9,6 +9,9 @@
 MY_PATH="`dirname \"$0\"`"              # relative
 MY_PATH="`( cd \"$MY_PATH\" && pwd )`"  # absolutized and normalized
 ME="${0##*/}"
+if [ -s "$HOME/.astro/bin/activate" ]; then
+    source $HOME/.astro/bin/activate
+fi
 ############################################################################################################################################################
 # ${MY_PATH}/G1BILLET_MAKE.sh "nu me ro test" "se cr et" 100 7sn9dKeCNEsHmqm1gMWNREke4YAWtNw8KG1YBSN8CmSh 97968583
 ############################################################################
