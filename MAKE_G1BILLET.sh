@@ -172,15 +172,18 @@ convert ${MY_PATH}/tmp/g1billet/${UNIQID}/QRTWavatar.png \
 
          [[ "${STYLE:0:1}" != "_" ]] \
                         && mv ${MY_PATH}/tmp/g1billet/${UNIQID}/320.png ${MY_PATH}/tmp/g1billet/${UNIQID}/LEFT.png \
-                            && BOTTOM="$(date) :: ♥Box :: ZENCARD :: $(hostname) ::"
+                            && BOTTOM="$(date) :: ♥Box :: ZENCARD :: $(hostname) ::" \
+                                    && NOTERIB="${NOTERIB}:ZEN"
 
         [[ "${STYLE:0:1}" == "x" ]] \
                          && mv ${MY_PATH}/tmp/g1billet/${UNIQID}/TW.${ASTRONS}.png ${MY_PATH}/tmp/g1billet/${UNIQID}/CENTER.png \
-                                    && BOTTOM="$(date) :: ♥Box :: ZENCARD+TW :: $(hostname) ::"
+                                    && BOTTOM="$(date) :: ♥Box :: ZENCARD+TW :: $(hostname) ::" \
+                                    && NOTERIB="${NOTERIB}:ZEN"
 
         [[ "${STYLE}" == "UPlanet" ]] \
                          && mv ${MY_PATH}/tmp/g1billet/${UNIQID}/TW.${ASTRONS}.png ${MY_PATH}/tmp/g1billet/${UNIQID}/CENTER.png \
-                                    && BOTTOM="$(date) :: ♥UPLANET :: MADE-IN-ZEN :: $(hostname) ::"
+                                    && BOTTOM="$(date) :: ♥UPLANET :: MADE-IN-ZEN :: $(hostname) ::" \
+                                    && NOTERIB="${NOTERIB}:ZEN"
 
         if [[ "${STYLE:0:1}" == "@" || "${STYLE}" =~ ^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$ ]] ; then
             #~ ########################## G1Voeu _ G1BILLET  linking ##
@@ -246,14 +249,14 @@ rm -f ${MY_PATH}/tmp/${BILLETNAME}.jpg
 
 ## ADD SouthWEST
 [[ -s "${MY_PATH}/tmp/g1billet/${UNIQID}/LEFT.png" ]] && \
-composite -compose Over -gravity SouthWest -geometry +50+40 \
+composite -compose Over -gravity SouthWest -geometry +85+40 \
 "${MY_PATH}/tmp/g1billet/${UNIQID}/LEFT.png" \
 "${MY_PATH}/tmp/g1billet/${UNIQID}/${BILLETNAME}.BILLET.jpg" \
 "${MY_PATH}/tmp/g1billet/${UNIQID}/${BILLETNAME}.BILLET.jpg"
 
 ## ADD CENTER QRCODE
 [[ -s "${MY_PATH}/tmp/g1billet/${UNIQID}/CENTER.png" ]] && \
-composite -compose Over -gravity Center -geometry +35+40 \
+composite -compose Over -gravity Center -geometry +65+40 \
 "${MY_PATH}/tmp/g1billet/${UNIQID}/CENTER.png" \
 "${MY_PATH}/tmp/g1billet/${UNIQID}/${BILLETNAME}.BILLET.jpg" \
 "${MY_PATH}/tmp/g1billet/${UNIQID}/${BILLETNAME}.BILLET.jpg"
@@ -266,7 +269,7 @@ composite -compose Over -gravity Center -geometry +35+40 \
 || qrencode -s 6 -o "${MY_PATH}/tmp/g1billet/${UNIQID}/${BILLETNAME}.QR.png" "$NOTERIB"
 
 # AJOUT DU G1PUB QRCODE A DROITE DU BILLET
-composite -compose Over -gravity SouthEast -geometry +30+50 \
+composite -compose Over -gravity SouthEast -geometry +30+40 \
 "${MY_PATH}/tmp/g1billet/${UNIQID}/${BILLETNAME}.QR.png" \
 "${MY_PATH}/tmp/g1billet/${UNIQID}/${BILLETNAME}.BILLET.jpg" \
 "${MY_PATH}/tmp/g1billet/${UNIQID}/${BILLETNAME}.BILLET.jpg"
