@@ -27,25 +27,31 @@ exec 2>&1 >> ~/.zen/G1BILLET/tmp/G1BILLETS.log
 
 echo "$ME ~~~~~~~~~~~~~~~ @@@@@@ -------"
 SECRET1="$1"
-echo SECRET1=${SECRET1}
+echo "SECRET1=[MASKED for security - length: ${#SECRET1}]"
 SECRET2="$2"
-echo SECRET2=${SECRET2}
+echo "SECRET2=[MASKED for security - length: ${#SECRET2}]"
 MONTANT="$3"
-echo MONTANT=${MONTANT}
+echo "MONTANT=${MONTANT}"
 NOTERIB="$4"
-echo NOTERIB=${NOTERIB}
+echo "NOTERIB=${NOTERIB}"
 UNIQID="$5"
-echo UNIQID=${UNIQID}
+echo "UNIQID=${UNIQID}"
 STYLE="$6"
-echo STYLE=${STYLE}
+echo "STYLE=${STYLE}"
 ASTRONS="$7"
-echo ASTRONS=${ASTRONS}
+echo "ASTRONS=${ASTRONS}"
 EMAIL="$8"
-echo EMAIL=${EMAIL}
+echo "EMAIL=${EMAIL}"
 
 if [[ "${SECRET1}" == "" || "$SECRET2" == "" || "$MONTANT" == "" || "$NOTERIB" == "" || "$UNIQID" == "" ]]
 then
-    echo "ERROR MISSING PARAM"
+    echo "ERROR: MISSING REQUIRED PARAMETERS"
+    exit 1
+fi
+
+## VALIDATE UNIQID (alphanumeric only)
+if [[ ! "$UNIQID" =~ ^[a-zA-Z0-9]+$ ]]; then
+    echo "ERROR: UNIQID must be alphanumeric"
     exit 1
 fi
 
@@ -53,6 +59,11 @@ TAB=(${SECRET1} ${SECRET2})
 FULLDICE=${#TAB[@]}
 
 mkdir -p ${MY_PATH}/tmp/g1billet/$UNIQID
+if [[ ! -d ${MY_PATH}/tmp/g1billet/$UNIQID ]]; then
+    echo "ERROR: Cannot create directory ${MY_PATH}/tmp/g1billet/$UNIQID"
+    exit 1
+fi
+
 BILLETNAME=$(echo ${SECRET1} | sed 's/ /_/g')
 
 IMAGESSTYLE="${IMAGES}/${STYLE}"
@@ -104,11 +115,12 @@ if [[ "${STYLE:0:1}" != "_" && "${STYLE:0:1}" != "@" && ! "${STYLE}" =~ ^[a-zA-Z
     s=$(${MY_PATH}/diceware.sh 1 | xargs)
     p=$(${MY_PATH}/diceware.sh 1 | xargs)
 
-    echo "(≖‿‿≖) PGP /?${s}=${USALT}&${p}=${UPEPPER} (PASS=$UNIQID)"
+    echo "(≖‿‿≖) PGP secrets encrypted (PASS=$UNIQID)"
     echo "/?${s}=${USALT}&${p}=${UPEPPER}"  > ${MY_PATH}/tmp/topgp
     echo "/?salt=${USALT}&pepper=${UPEPPER}"  > ${MY_PATH}/tmp/topgp
+    chmod 600 ${MY_PATH}/tmp/topgp ## Secure temp file
     cat ${MY_PATH}/tmp/topgp | gpg --symmetric --armor --batch --passphrase "$UNIQID" -o ${MY_PATH}/tmp/gpg.${BILLETNAME}.asc
-    rm ${MY_PATH}/tmp/topgp ## CLEANING CACHE
+    shred -u ${MY_PATH}/tmp/topgp 2>/dev/null || rm -f ${MY_PATH}/tmp/topgp ## SECURE CLEANING
 
     DISCO="$(cat ${MY_PATH}/tmp/gpg.${BILLETNAME}.asc | tr '-' '~' | tr '\n' '-'  | tr '+' '_' | jq -Rr @uri )"
 #    [[ ${STYLE} == "UPlanet" ]] && DISCO="$(cat ${MY_PATH}/tmp/gpg.${BILLETNAME}.asc | tr '-' '&' | tr '\n' '-'  | tr '+' '_' | jq -Rr @uri )" ## & ẑencard = (email/8digit)+4digit ## CALLED FROM VISA.new
@@ -129,7 +141,7 @@ if [[ "${STYLE:0:1}" != "_" && "${STYLE:0:1}" != "@" && ! "${STYLE}" =~ ^[a-zA-Z
     convert -gravity southeast -pointsize 28 -fill black -draw "text 5,3 \"${EMAIL}\"" ${MY_PATH}/tmp/fond_qrcode.png ${MY_PATH}/tmp/g1billet/${UNIQID}/${BILLETNAME}.ZENCARD.png
     convert ${MY_PATH}/tmp/g1billet/${UNIQID}/${BILLETNAME}.ZENCARD.png -resize 320 ${MY_PATH}/tmp/g1billet/${UNIQID}/320.png
 
-    rm ${MY_PATH}/tmp/gpg.${BILLETNAME}.asc
+    shred -u ${MY_PATH}/tmp/gpg.${BILLETNAME}.asc 2>/dev/null || rm -f ${MY_PATH}/tmp/gpg.${BILLETNAME}.asc
 
 fi
 
@@ -285,7 +297,15 @@ echo "$ME ~~~~~~~~~~~~~~~ @@@@@@ -------"
 
 ## BILLET READY in ${MY_PATH}/tmp/g1billet/${UNIQID}/${BILLETNAME}.BILLET.jpg
 ## NOT TO BE IN FINAL PDF (getting all jpg)
-rm "${MY_PATH}/tmp/g1billet/${UNIQID}/fond.jpg"
+rm -f "${MY_PATH}/tmp/g1billet/${UNIQID}/fond.jpg"
+
+## SECURE CLEANUP OF TEMPORARY FILES
+rm -f ${MY_PATH}/tmp/fond_qrcode.png
+rm -f ${MY_PATH}/tmp/fond.png
+rm -f ${MY_PATH}/tmp/g1billet/${UNIQID}/*.QR.png 2>/dev/null
+rm -f ${MY_PATH}/tmp/g1billet/${UNIQID}/LEFT.png 2>/dev/null
+rm -f ${MY_PATH}/tmp/g1billet/${UNIQID}/CENTER.png 2>/dev/null
+rm -f ${MY_PATH}/tmp/g1billet/${UNIQID}/g1.png 2>/dev/null
 
 exit 0
 

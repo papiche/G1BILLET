@@ -23,7 +23,13 @@ MONTANT="$1"
 if [[ $MONTANT != "daemon" ]]; then
 
     pidportinuse=$(lsof -i :33102 | tail -n 1 | awk '{print $2}')
-    [[ $pidportinuse ]] && kill $pidportinuse && echo "KILLING NOT COLLECTED THREAD $pidportinuse"
+    if [[ $pidportinuse ]]; then
+        echo "Stopping previous thread $pidportinuse gracefully"
+        kill -TERM $pidportinuse 2>/dev/null
+        sleep 1
+        # Force kill if still running
+        kill -0 $pidportinuse 2>/dev/null && kill -9 $pidportinuse 2>/dev/null
+    fi
 
     [[ $MONTANT == "" || $MONTANT == "0" ]] && MONTANT="___"
 
@@ -36,6 +42,9 @@ if [[ $MONTANT != "daemon" ]]; then
 
     [[ $DICE != ?(-)+([0-9]) ]] && DICE=$(cat $MY_PATH/DICE 2>/dev/null) ## HOW MANY WORDS SECRETS
     [[ $DICE != ?(-)+([0-9]) ]] && DICE=4
+    
+    ## VALIDATE DICE RANGE
+    [[ $DICE -lt 1 || $DICE -gt 10 ]] && echo "ERROR: DICE must be between 1 and 10" && exit 1
 
     echo "G1BILLET FACTORY MONTANT=$MONTANT DICE=$DICE"
     echo "$STYLE : $MY_PATH/${IMAGES}/$STYLE"
@@ -63,9 +72,20 @@ if [[ $MONTANT != "daemon" ]]; then
     # CHECK IF $STYLE IMAGES EXIST
     IMAGESSTYLE="${IMAGES}/${STYLE}"
     [[ ${STYLE} == "UPlanet" ]] && STYLE="xastro" ## DEFAULT : UPlanet Style
-    [[ ! -f ${MY_PATH}/${IMAGES}/${STYLE}/g1.png ]] && ERROR="MISSING ./${IMAGES}/${STYLE}/g1.png - EXIT" && echo $ERROR && exit 1
-    [[ ! -f ${MY_PATH}/${IMAGES}/${STYLE}/fond.jpg ]] && ERROR="MISSING ./${IMAGES}/${STYLE}/fond.jpg- EXIT" && echo $ERROR && exit 1
-    [[ ! -f ${MY_PATH}/${IMAGES}/${STYLE}/logo.png ]] && ERROR="MISSING ./${IMAGES}/${STYLE}/logo.png- EXIT" && echo $ERROR && exit 1
+    
+    ## VALIDATE REQUIRED IMAGE FILES
+    if [[ ! -f ${MY_PATH}/${IMAGES}/${STYLE}/g1.png ]]; then
+        echo "ERROR: Missing ./${IMAGES}/${STYLE}/g1.png"
+        exit 1
+    fi
+    if [[ ! -f ${MY_PATH}/${IMAGES}/${STYLE}/fond.jpg ]]; then
+        echo "ERROR: Missing ./${IMAGES}/${STYLE}/fond.jpg"
+        exit 1
+    fi
+    if [[ ! -f ${MY_PATH}/${IMAGES}/${STYLE}/logo.png ]]; then
+        echo "ERROR: Missing ./${IMAGES}/${STYLE}/logo.png"
+        exit 1
+    fi
 
     # CREATION DE $NBbillets BILLETS DE $MONTANT DU
     boucle=0;
@@ -83,10 +103,10 @@ if [[ $MONTANT != "daemon" ]]; then
         ## ADAPT SECURITY LEVEL
         [[ ${SECRET1} == "" || $boucle -gt 1 ]] && SECRET1="${UNIQID} $(${MY_PATH}/diceware.sh $DICE | xargs)"
         [[ ${SECRET2} == "" || $boucle -gt 1 ]] && SECRET2=$(${MY_PATH}/diceware.sh $DICE | xargs)
-        echo "${SECRET1}" "${SECRET2}"
+        echo "Secrets generated: [MASKED for security]"
         # CREATION CLEF BILLET
         BILLETPUBKEY=$(python3 ${MY_PATH}/key_create_dunikey.py "${SECRET1}" "${SECRET2}")
-        rm -f /tmp/secret.dunikey
+        shred -u /tmp/secret.dunikey 2>/dev/null || rm -f /tmp/secret.dunikey
         echo "$boucle : $BILLETPUBKEY "
 
         if [[ $DICE -ge 4 || "${STYLE:0:1}" != "_" ]]; then
@@ -97,8 +117,12 @@ if [[ $MONTANT != "daemon" ]]; then
         #######################################################################################################
         # CREATION FICHIER IMAGE BILLET dans ${MY_PATH}/tmp/g1billet/${UNIQID}
         #######################################################################################################
-        echo ${MY_PATH}/MAKE_G1BILLET.sh '"'${SECRET1}'"' '"'${SECRET2}'"' "${MONTANT}" "${BILLETPUBKEY}" "${UNIQID}" "${STYLE}" "${ASTRONS}" "${EMAIL}"
+        echo "${MY_PATH}/MAKE_G1BILLET.sh [SECRETS MASKED] \"${MONTANT}\" \"${BILLETPUBKEY}\" \"${UNIQID}\" \"${STYLE}\" \"${ASTRONS}\" \"${EMAIL}\""
         ${MY_PATH}/MAKE_G1BILLET.sh "${SECRET1}" "${SECRET2}" "${MONTANT}" "${BILLETPUBKEY}" "${UNIQID}" "${STYLE}" "${ASTRONS}" "${EMAIL}"
+        if [[ $? -ne 0 ]]; then
+            echo "ERROR: Failed to create G1BILLET"
+            exit 1
+        fi
         #######################################################################################################
         #######################################################################################################
 
@@ -112,23 +136,28 @@ if [[ $MONTANT != "daemon" ]]; then
         # CLEANING TEMP FILES
         echo rm -Rf ${MY_PATH}/tmp/g1billet/${UNIQID}
 
-        # ALLOWS ANY USER TO DELETE
-        chmod 777 ${MY_PATH}/tmp/g1billet/${UNIQID}.jpg
+        # SET SECURE FILE PERMISSIONS
+        chmod 640 ${MY_PATH}/tmp/g1billet/${UNIQID}.jpg
         export ZFILE="${MY_PATH}/tmp/g1billet/${UNIQID}.jpg"
 
     else
 
         # MONTAGE DES IMAGES DES BILLETS VERS ${MY_PATH}/tmp/g1billet/${UNIQID}.pdf
-        montage ${MY_PATH}/tmp/g1billet/${UNIQID}/*.jpg -tile 2x3 -geometry 964x459 ${MY_PATH}/tmp/g1billet/${UNIQID}.pdf
-        # NB!! if "not autorized" then edit /etc/ImageMagick-6/policy.xml and comment
-        [[ ! -s ${MY_PATH}/tmp/g1billet/${UNIQID}.pdf ]] && echo "ERROR PDF NOT FOUND - contact - support@qo-op.com" && exit 1
+        montage ${MY_PATH}/tmp/g1billet/${UNIQID}/*.jpg -tile 2x3 -geometry 964x459 ${MY_PATH}/tmp/g1billet/${UNIQID}.pdf 2>&1
+        # NB!! if "not authorized" then edit /etc/ImageMagick-6/policy.xml and comment
         # <!-- <policy domain="coder" rights="none" pattern="PDF" /> -->
+        if [[ ! -s ${MY_PATH}/tmp/g1billet/${UNIQID}.pdf ]]; then
+            echo "ERROR: PDF generation failed"
+            echo "Check ImageMagick policy: /etc/ImageMagick-6/policy.xml"
+            echo "Contact: support@qo-op.com"
+            exit 1
+        fi
 
         # CLEANING TEMP FILES
         rm -Rf ${MY_PATH}/tmp/g1billet/${UNIQID}
 
-        # ALLOWS ANY USER TO DELETE
-        chmod 777 ${MY_PATH}/tmp/g1billet/${UNIQID}.pdf
+        # SET SECURE FILE PERMISSIONS
+        chmod 640 ${MY_PATH}/tmp/g1billet/${UNIQID}.pdf
         export ZFILE="${MY_PATH}/tmp/g1billet/${UNIQID}.pdf"
 
     fi
@@ -145,10 +174,25 @@ else
     ## MAKE IT A NETWORK MICRO SERVICE -- PORTS : INPUT=33101 OUTPUT=33102
     ############## CLEAN START DAEMON MODE ###
     pidportinuse=$(lsof -i :33101 | tail -n 1 | awk '{print $2}')
-    [[ $pidportinuse ]] && echo "KILLING OLD DEAMON 33101 $pidportinuse" && kill -9 $pidportinuse && killall G1BILLETS.sh && exit 1
+    if [[ $pidportinuse ]]; then
+        echo "Stopping old daemon 33101 $pidportinuse gracefully"
+        kill -TERM $pidportinuse 2>/dev/null
+        sleep 2
+        # Force kill if still running
+        if kill -0 $pidportinuse 2>/dev/null; then
+            kill -9 $pidportinuse 2>/dev/null
+            killall G1BILLETS.sh 2>/dev/null
+        fi
+        exit 1
+    fi
 
     pidportinuse=$(lsof -i :33102 | head -n 1 | awk '{print $2}')
-    [[ $pidportinuse ]] && kill $pidportinuse && echo "KILLING NOT COLLECTED THREAD $pidportinuse"
+    if [[ $pidportinuse ]]; then
+        echo "Stopping previous thread $pidportinuse gracefully"
+        kill -TERM $pidportinuse 2>/dev/null
+        sleep 1
+        kill -0 $pidportinuse 2>/dev/null && kill -9 $pidportinuse 2>/dev/null
+    fi
     #####################################################################
     myIP=$(hostname -I | awk '{print $1}' | head -n 1)
     isLAN=$(route -n |awk '$1 == "0.0.0.0" {print $2}' | grep -E "/(^127\.)|(^192\.168\.)|(^10\.)|(^172\.1[6-9]\.)|(^172\.2[0-9]\.)|(^172\.3[0-1]\.)|(^::1$)|(^[fF][cCdD])/")
@@ -359,7 +403,12 @@ Content-Type: text/html; charset=UTF-8
 
     # KILL OLD 33102 - USE IT IF YOU ( publishing )&
         pidportinuse=$(lsof -i :33102 | tail -n 1 | awk '{print $2}')
-        [[ $pidportinuse ]] && kill -9 $pidportinuse && echo "KILLING NOT COLLECTED THREAD $pidportinuse"
+        if [[ $pidportinuse ]]; then
+            echo "Stopping thread $pidportinuse gracefully"
+            kill -TERM $pidportinuse 2>/dev/null
+            sleep 1
+            kill -0 $pidportinuse 2>/dev/null && kill -9 $pidportinuse 2>/dev/null
+        fi
 
     # HTTP/1.1 200 OK
     echo 'HTTP/1.1 200 OK
@@ -399,8 +448,9 @@ Content-Disposition: attachment; filename='${FILE_NAME}'
 
     fi
 
-    ## EMPTY YESTERDAY TMP FILES
-    find ${MY_PATH}/tmp -mtime +1 -exec rm -Rf '{}' \;
+    ## EMPTY OLD TMP FILES (older than 1 day)
+    find ${MY_PATH}/tmp -mtime +1 -type f -exec rm -f '{}' \; 2>/dev/null
+    find ${MY_PATH}/tmp -mtime +1 -type d -empty -delete 2>/dev/null
 
     done
     #####################################################################
